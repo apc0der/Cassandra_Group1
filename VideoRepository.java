@@ -82,9 +82,4 @@ public class VideoRepository {
         return result;
     }
 
-    public void insertVideo(Video video) {
-
-    }
-
-
 }
