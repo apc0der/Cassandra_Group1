@@ -17,7 +17,7 @@ public class Application {
 
         VideoRepository videoRepository = new VideoRepository(session);
 
-        //videoRepository.createTable("testKeyspace");
+        videoRepository.createTable("testKeyspace");
 
         videoRepository.insertVideo(new Video("Video Title 1", Instant.now()), "testKeyspace");
         videoRepository.insertVideo(new Video("Video Title 2", Instant.now().minus(1, ChronoUnit.DAYS)), "testKeyspace");
