@@ -8,27 +8,32 @@ import com.datastax.oss.driver.api.core.type.DataTypes;
 import com.datastax.oss.driver.api.querybuilder.QueryBuilder;
 import com.datastax.oss.driver.api.querybuilder.SchemaBuilder;
 import com.datastax.oss.driver.api.querybuilder.insert.RegularInsert;
+import com.datastax.oss.driver.api.querybuilder.schema.AlterTableStart;
 import com.datastax.oss.driver.api.querybuilder.schema.CreateTable;
+import com.datastax.oss.driver.api.querybuilder.schema.Drop;
 import com.datastax.oss.driver.api.querybuilder.select.Select;
+import com.datastax.oss.driver.api.querybuilder.truncate.Truncate;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
 public class VideoRepository {
-    private CqlSession session;
     private static final String TABLE_NAME = "videos";
+    private CqlSession session;
 
-    public VideoRepository(CqlSession session) {
-        this.session = session;
+    public VideoRepository(CqlSession sessions) {
+        session = sessions;
     }
-
     public void createTable() {
         createTable(null);
     }
 
     public void createTable(String keyspace) {
+        SimpleStatement ss = SchemaBuilder.dropTable(TABLE_NAME).ifExists().build();
+        executeStatement(ss,keyspace);
         CreateTable createTable = SchemaBuilder.createTable(TABLE_NAME)
+                .ifNotExists()
                 .withPartitionKey("video_id", DataTypes.UUID)
                 .withColumn("title", DataTypes.TEXT)
                 .withColumn("creation_date", DataTypes.TIMESTAMP);
@@ -36,11 +41,11 @@ public class VideoRepository {
         executeStatement(createTable.build(), keyspace);
     }
 
+
     private ResultSet executeStatement(SimpleStatement statement, String keyspace) {
         if (keyspace != null) {
             statement.setKeyspace(CqlIdentifier.fromCql(keyspace));
         }
-
         return session.execute(statement);
     }
 
@@ -56,6 +61,10 @@ public class VideoRepository {
 
         SimpleStatement insertStatement = insertInto.build();
 
+        if (keyspace != null) {
+            insertStatement = insertStatement.setKeyspace(keyspace);
+        }
+
         PreparedStatement preparedStatement = session.prepare(insertStatement);
 
         BoundStatement statement = preparedStatement.bind()
@@ -67,7 +76,6 @@ public class VideoRepository {
 
         return videoId;
     }
-
     public List<Video> selectAll(String keyspace) {
         Select select = QueryBuilder.selectFrom(TABLE_NAME).all();
 
@@ -82,4 +90,5 @@ public class VideoRepository {
         return result;
     }
 
+    // ...
 }
