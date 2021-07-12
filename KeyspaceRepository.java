@@ -58,46 +58,12 @@ public class KeyspaceRepository {
     }
 
 
-    public List<String> getKeyspaceList()
-    {
+    public List<String> getKeyspaceList() {
         Select select = QueryBuilder.selectFrom("system_schema", "keyspaces").all();
         ResultSet y = session.execute(select.build());
         List<String> result = new ArrayList<>();
         y.forEach(x -> result.add(x.getString("keyspace_name")));
         return result;
-    }
-
-    public Set<String> getPartitions(String keyspace, String table)
-    {
-        /*Select select1 = QueryBuilder.selectFrom("testKeyspace","videos").columns("video_id","title");
-        ResultSet y1 = session.execute(select1.build());
-        List<String> result1 = new ArrayList<>();
-        y1.forEach(x -> result1.add(x.getString("video_id")));
-        return result1;
-         */
-        List<ColumnMetadata> ace = session.getMetadata().getKeyspace(keyspace).get().getTable(table).get().getPartitionKey();
-        List<String> colNames = new ArrayList<>();
-        List<DataType> colTypes = new ArrayList<>();
-        for(ColumnMetadata base : ace)
-        {
-            colNames.add(base.getName().toString());
-            colTypes.add(base.getType());
-        }
-
-        Select select = QueryBuilder.selectFrom(keyspace,table).columns(colNames);
-        ResultSet rs = session.execute(select.build());
-        Set<String> result = new TreeSet<String>();
-        rs.forEach(x -> {StringBuilder sb = new StringBuilder();
-            sb.append("(");
-            for(int i=0; i<colNames.size(); i++){
-                sb.append(conversion(colNames.get(i),colTypes.get(i),x) + ", ");
-            }
-            sb.delete(sb.length()-2,sb.length());
-            sb.append(")");
-
-            result.add(sb.toString());
-        });
-        return  result;
     }
 
     private String conversion(String col, DataType a, Row b) {
@@ -161,6 +127,92 @@ public class KeyspaceRepository {
         List<String> result = new ArrayList<>();
         y.forEach(x -> result.add(x.getString("table_name")));
         return result;
+    }
+    public List<String> getPartitionVarList(String keyspace, String table)
+    {
+        List<ColumnMetadata> ace = session.getMetadata().getKeyspace(keyspace).get().getTable(table).get().getPartitionKey();
+        List<String> colNames = new ArrayList<>();
+        for(ColumnMetadata base : ace)
+        {
+            colNames.add(base.getName().toString());
+        }
+        return colNames;
+    }
+    public List<DataType> getPartitionVarTypeList(String keyspace, String table)
+    {
+        List<ColumnMetadata> ace = session.getMetadata().getKeyspace(keyspace).get().getTable(table).get().getPartitionKey();
+        List<DataType> colTypes = new ArrayList<>();
+        for(ColumnMetadata base : ace)
+        {
+            colTypes.add(base.getType());
+        }
+        return colTypes;
+    }
+    public void test(String keyspace, String table)
+    {
+        Map<CqlIdentifier,ColumnMetadata> map = session.getMetadata().getKeyspace(keyspace).get().getTable(table).get().getColumns();
+        Set<CqlIdentifier> set = map.keySet();
+        String s1 = "";
+        for (CqlIdentifier cqlIdentifier: set) {
+            String s = map.get(cqlIdentifier).toString();
+            s1 += s.substring(s.indexOf("(")+1,s.length()-1) + ", ";
+        }
+        s1 = s1.substring(0,s1.length()-2);
+        System.out.println(s1);
+    }
+    public List<String> getPartitionList(String keyspace, String table)
+    {
+        List<String> colNames = getPartitionVarList(keyspace, table);
+        List<DataType> colTypes = getPartitionVarTypeList(keyspace, table);
+        keyspace = keyspace.toLowerCase();
+        table = table.toLowerCase();
+        Select select = QueryBuilder.selectFrom(keyspace, table).columns(colNames);
+        ResultSet y = session.execute(select.build());
+        Set<String> diffStrings = new TreeSet<>();
+        y.forEach(x -> {StringBuilder sb = new StringBuilder();
+            sb.append('(');
+            for(int i=0; i < colNames.size(); i++)
+            {
+                sb.append(conversion(colNames.get(i), colTypes.get(i), x) + ", ");
+            }
+            sb.delete(sb.length()-2, sb.length());
+            sb.append(')');
+            diffStrings.add(sb.toString());
+        });
+        List<String> parts = new ArrayList<>();
+        for(String x: diffStrings)
+        {
+            parts.add(x);
+        }
+        return parts;
+    }
+    public Map<String, Integer> getRowsPerPartition(String keyspace, String table)
+    {
+        List<String> colNames = getPartitionVarList(keyspace, table);
+        List<DataType> colTypes = getPartitionVarTypeList(keyspace, table);
+        keyspace = keyspace.toLowerCase();
+        table = table.toLowerCase();
+        Select select = QueryBuilder.selectFrom(keyspace, table).columns(colNames);
+        ResultSet y = session.execute(select.build());
+        Map<String, Integer> partitionKeysTONumInPartition = new TreeMap<>();
+        y.forEach(x -> {StringBuilder sb = new StringBuilder();
+            sb.append('(');
+            for(int i=0; i < colNames.size(); i++)
+            {
+                sb.append(conversion(colNames.get(i), colTypes.get(i), x) + ", ");
+            }
+            sb.delete(sb.length()-2, sb.length());
+            sb.append(')');
+            if(partitionKeysTONumInPartition.containsKey(sb.toString()))
+            {
+                partitionKeysTONumInPartition.put(sb.toString(), partitionKeysTONumInPartition.get(sb.toString())+1);
+            }
+            else
+            {
+                partitionKeysTONumInPartition.put(sb.toString(), 1);
+            }
+        });
+        return partitionKeysTONumInPartition;
     }
 
 }
