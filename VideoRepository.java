@@ -1,9 +1,6 @@
 import com.datastax.oss.driver.api.core.CqlIdentifier;
 import com.datastax.oss.driver.api.core.CqlSession;
-import com.datastax.oss.driver.api.core.cql.BoundStatement;
-import com.datastax.oss.driver.api.core.cql.PreparedStatement;
-import com.datastax.oss.driver.api.core.cql.ResultSet;
-import com.datastax.oss.driver.api.core.cql.SimpleStatement;
+import com.datastax.oss.driver.api.core.cql.*;
 import com.datastax.oss.driver.api.core.type.DataTypes;
 import com.datastax.oss.driver.api.querybuilder.QueryBuilder;
 import com.datastax.oss.driver.api.querybuilder.SchemaBuilder;
@@ -19,7 +16,7 @@ import java.util.List;
 import java.util.UUID;
 
 public class VideoRepository {
-    private static final String TABLE_NAME = "videos";
+    private static final String TABLE_NAME = "bozos";
     private CqlSession session;
 
     public VideoRepository(CqlSession sessions) {
@@ -30,22 +27,27 @@ public class VideoRepository {
     }
 
     public void createTable(String keyspace) {
-        SimpleStatement ss = SchemaBuilder.dropTable(TABLE_NAME).ifExists().build();
-        executeStatement(ss,keyspace);
         CreateTable createTable = SchemaBuilder.createTable(TABLE_NAME)
                 .ifNotExists()
-                .withPartitionKey("video_id", DataTypes.UUID)
-                .withColumn("title", DataTypes.TEXT)
+                .withPartitionKey("title", DataTypes.TEXT)
+                .withColumn("video_id", DataTypes.UUID)
                 .withColumn("creation_date", DataTypes.TIMESTAMP);
-
-        executeStatement(createTable.build(), keyspace);
+        SimpleStatement create = createTable.build();
+        executeStatement(create, keyspace);
+    }
+    public void dropTable(String keyspace){
+        SimpleStatement drop = SchemaBuilder.dropTable(TABLE_NAME).ifExists().build();
+        executeStatement(drop, keyspace);
     }
 
+    public void truncateTable(String keyspace){
+        SimpleStatement truncate = QueryBuilder.truncate(keyspace, TABLE_NAME).build();
+        executeStatement(truncate, keyspace);
+    }
 
     private ResultSet executeStatement(SimpleStatement statement, String keyspace) {
-        if (keyspace != null) {
-            statement.setKeyspace(CqlIdentifier.fromCql(keyspace));
-        }
+        statement.setKeyspace(CqlIdentifier.fromCql(keyspace));
+
         return session.execute(statement);
     }
 
@@ -60,11 +62,6 @@ public class VideoRepository {
                 .value("creation_date", QueryBuilder.bindMarker());
 
         SimpleStatement insertStatement = insertInto.build();
-
-        if (keyspace != null) {
-            insertStatement = insertStatement.setKeyspace(keyspace);
-        }
-
         PreparedStatement preparedStatement = session.prepare(insertStatement);
 
         BoundStatement statement = preparedStatement.bind()
@@ -89,6 +86,4 @@ public class VideoRepository {
 
         return result;
     }
-
-    // ...
 }
