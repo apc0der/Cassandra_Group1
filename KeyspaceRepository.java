@@ -69,28 +69,38 @@ public class KeyspaceRepository {
 
     public List<String> getPartitionVarList(String keyspace, String table)
     {
-        List<ColumnMetadata> ace = session.getMetadata().getKeyspace(keyspace).get().getTable(table).get().getPartitionKey();
-        List<String> colNames = new ArrayList<>();
-        for(ColumnMetadata base : ace)
-        {
-            colNames.add(base.getName().toString());
+        try {
+            List<ColumnMetadata> ace = session.getMetadata().getKeyspace(keyspace).get().getTable(table).get().getPartitionKey();
+            List<String> colNames = new ArrayList<>();
+            for (ColumnMetadata base : ace) {
+                colNames.add(base.getName().toString());
+            }
+            return colNames;
         }
-        return colNames;
+        catch (Exception e) {
+            return(new ArrayList<String>());
+        }
     }
     public List<DataType> getPartitionVarTypeList(String keyspace, String table)
     {
-        List<ColumnMetadata> ace = session.getMetadata().getKeyspace(keyspace).get().getTable(table).get().getPartitionKey();
-        List<DataType> colTypes = new ArrayList<>();
-        for(ColumnMetadata base : ace)
-        {
-            colTypes.add(base.getType());
+        try {
+            List<ColumnMetadata> ace = session.getMetadata().getKeyspace(keyspace).get().getTable(table).get().getPartitionKey();
+            List<DataType> colTypes = new ArrayList<>();
+            for (ColumnMetadata base : ace) {
+                colTypes.add(base.getType());
+            }
+            return colTypes;
         }
-        return colTypes;
+        catch (Exception e) {
+            return(new ArrayList<DataType>());
+        }
     }
     public List<String> getPartitionList(String keyspace, String table)
     {
         List<String> colNames = getPartitionVarList(keyspace, table);
         List<DataType> colTypes = getPartitionVarTypeList(keyspace, table);
+        if(colNames.isEmpty())
+            return new ArrayList<>();
         keyspace = keyspace.toLowerCase();
         table = table.toLowerCase();
         Select select = QueryBuilder.selectFrom(keyspace, table).columns(colNames);
@@ -113,10 +123,12 @@ public class KeyspaceRepository {
         }
         return parts;
     }
-    public Map<String, Integer> getNumRowsByPart(String keyspace, String table)
+    public Map<String, Integer> getRowsPerPartition(String keyspace, String table)
     {
         List<String> colNames = getPartitionVarList(keyspace, table);
         List<DataType> colTypes = getPartitionVarTypeList(keyspace, table);
+        if(colNames.isEmpty())
+            return new TreeMap<String, Integer>();
         keyspace = keyspace.toLowerCase();
         table = table.toLowerCase();
         Select select = QueryBuilder.selectFrom(keyspace, table).columns(colNames);
