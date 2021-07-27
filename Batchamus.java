@@ -5,22 +5,14 @@ import java.util.*;
 import java.io.*;
 
 public class Batchamus {
-    private CqlSession session;
+
     private String keyspace;
     private String table;
 
-    public Batchamus(CqlSession session, String keyspace, String table){
-        this.session = session;
+    public Batchamus(String keyspace, String table){
+
         this.keyspace = keyspace;
         this.table = table;
-    }
-
-    public CqlSession getSession() {
-        return session;
-    }
-
-    public void setSession(CqlSession session) {
-        this.session = session;
     }
 
     public String getKeyspace() {
@@ -39,19 +31,11 @@ public class Batchamus {
         this.table = table;
     }
 
-    public String b() throws IOException{
+    public String cSize() throws IOException{
 
         Runtime.getRuntime().exec("cmd /c cd %CASSANDRA_HOME%\\bin");
         //Runtime.getRuntime().exec("cmd /c cd .\\bin");
         String yee = "cmd /c call nodetool cfstats";
-        if (keyspace != null && table != null) {
-            yee += " " + keyspace + "." + table;
-        } else if (keyspace != null && table == null){
-            yee += " " + keyspace;
-        } else if (keyspace == null && table == null){
-            yee += "";
-        }
-
         Process p = Runtime.getRuntime().exec(yee);
         Scanner sc = new Scanner(new InputStreamReader(p.getInputStream()));
 
@@ -83,17 +67,15 @@ public class Batchamus {
             y *= 1000;
             d--;
         }
-        return String.format("%.3f %s\n", y, xd.get(d));
+        return String.format("%.3f %s", y, xd.get(d));
     }
 
-    public List<String> bp() throws IOException{
+    public ArrayList<String> pSize(List<String> pS, Map<String, Integer> rPP) throws IOException{
         Runtime.getRuntime().exec("cmd /c cd %CASSANDRA_HOME%\\bin");
         //Runtime.getRuntime().exec("cmd /c cd .\\bin");
 
         Process p = Runtime.getRuntime().exec("cmd /c call nodetool cfstats " + keyspace + "." + table);
         Scanner sc = new Scanner(new InputStreamReader(p.getInputStream()));
-
-        KeyspaceRepository keyspaceRepository = new KeyspaceRepository(session);
 
         long keyspaceSize = 0;
         while (sc.hasNextLine()){
@@ -103,10 +85,10 @@ public class Batchamus {
             }
         }
 
-        List<String> pS = keyspaceRepository.getPartitionList(keyspace, table);
-        Map<String, Integer> rPP = keyspaceRepository.getNumRowsByPart(keyspace, table);
+
         List<Double> fracs = new ArrayList<Double>();
-        List<String> out = new ArrayList<String>();
+        fracs.add(1.0);
+        ArrayList<String> out = new ArrayList<String>();
 
         double totRow = 0;
         for (String s: pS){
@@ -127,21 +109,30 @@ public class Batchamus {
         xd.add("EB");
         xd.add("ZB");
 
-        for (int j = 0; j < fracs.size(); j++){
-            double x = y*fracs.get(j);
+        for (int j = 0; j < fracs.size(); j++) {
+            double x = y * fracs.get(j);
             int d = 0;
-            while(x>1)
-            {
+            while (x > 1) {
                 x /= 1000;
                 d++;
             }
-            if(x<1)
-            {
+            if (d > 0 && x < 1) {
                 x *= 1000;
                 d--;
             }
-            out.add(String.format(pS.get(j) + " ≈ %.3f %s\n", x, xd.get(d)));
+            out.add((j == 0) ? String.format("tot" + " = %.3f %s", x, xd.get(d)) : String.format(pS.get(j - 1) + " = %.3f %s", x, xd.get(d)));
         }
         return out;
+    }
+    public List<String> getTableVPart(ArrayList<String> tableSizes, boolean total){
+        if (total){
+            List<String> output = new ArrayList<String>();
+            output.add(tableSizes.get(0));
+            return output;
+        } else {
+            ArrayList<String> output = (ArrayList<String>) tableSizes.clone();
+            output.remove(0);
+            return output;
+        }
     }
 }
