@@ -6,9 +6,7 @@ import com.datastax.oss.driver.api.core.metadata.schema.ColumnMetadata;
 import com.datastax.oss.driver.api.core.type.DataType;
 import com.datastax.oss.driver.api.core.type.DataTypes;
 import com.datastax.oss.driver.api.querybuilder.QueryBuilder;
-import com.datastax.oss.driver.api.querybuilder.SchemaBuilder;
 import com.datastax.oss.driver.api.querybuilder.relation.Relation;
-import com.datastax.oss.driver.api.querybuilder.schema.CreateKeyspace;
 import com.datastax.oss.driver.api.querybuilder.select.Select;
 
 import java.util.*;
@@ -19,19 +17,6 @@ public class KeyspaceRepository {
     public KeyspaceRepository(CqlSession session) {
         this.session = session;
     }
-
-    public void createKeyspace(String keyspaceName, int numberOfReplicas) {
-        CreateKeyspace cK = SchemaBuilder.createKeyspace(keyspaceName)
-                .ifNotExists()
-                .withSimpleStrategy(numberOfReplicas);
-
-        session.execute(cK.build());
-    }
-
-    public void useKeyspace(String keyspace) {
-        session.execute("USE " + CqlIdentifier.fromCql(keyspace));
-    }
-
     public List<String> getKeyspaceList() {
         Select select = QueryBuilder.selectFrom("system_schema", "keyspaces").all();
         ResultSet rs = session.execute(select.build());
@@ -43,11 +28,10 @@ public class KeyspaceRepository {
     public List<String> getTableList(String keyspace)
     {
         Select select = QueryBuilder.selectFrom("system_schema", "tables").all();
-        if (keyspace != null)
-            if (keyspace != null) {
-                keyspace = keyspace.toLowerCase();
-                select = select.where(Relation.column("keyspace_name").isEqualTo(QueryBuilder.literal(keyspace)));
-            }
+        if (keyspace != null) {
+            keyspace = keyspace.toLowerCase();
+            select = select.where(Relation.column("keyspace_name").isEqualTo(QueryBuilder.literal(keyspace)));
+        }
         ResultSet rs = session.execute(select.build());
         List<String> result = new ArrayList<>();
         rs.forEach(x -> result.add(x.getString("table_name")));
@@ -56,15 +40,20 @@ public class KeyspaceRepository {
 
     public String getColDefs(String keyspace, String table)
     {
-        Map<CqlIdentifier,ColumnMetadata> map = session.getMetadata().getKeyspace(keyspace).get().getTable(table).get().getColumns();
-        Set<CqlIdentifier> set = map.keySet();
-        String s1 = "";
-        for (CqlIdentifier cqlIdentifier: set) {
-            String s = map.get(cqlIdentifier).toString();
-            s1 += s.substring(s.indexOf("(")+1,s.length()-1) + ", ";
+        try {
+            Map<CqlIdentifier, ColumnMetadata> map = session.getMetadata().getKeyspace(keyspace).get().getTable(table).get().getColumns();
+            Set<CqlIdentifier> set = map.keySet();
+            StringBuilder s1 = new StringBuilder("");
+            for (CqlIdentifier cqlIdentifier : set) {
+                String s = map.get(cqlIdentifier).toString();
+                s1.append(s.substring(s.indexOf("(") + 1, s.length() - 1) + ", ");
+            }
+            String out = s1.substring(0, s1.length() - 2).replaceAll(keyspace+"."+table+".", "");
+            return (out);
+        }catch (Exception e)
+        {
+            return "";
         }
-        s1 = s1.substring(0,s1.length()-2);
-        return (s1);
     }
 
     public List<String> getPartitionVarList(String keyspace, String table)
