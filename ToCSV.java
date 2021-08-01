@@ -7,9 +7,9 @@ public class ToCSV {
         CassandraConnector connector = new CassandraConnector();
         connector.connect("127.0.0.1", 9042, "datacenter1");
         PrintWriter pw = new PrintWriter("testfile.csv");
-        pw.println("Table Name\tNum Partitions\tNum Rows Per Partition\tColumn Definitions\tTable Size\tEstimated Size of Partitions\t\t\tCluster Info");
+        pw.println("Keyspace Name\tTable Name\tNum Partitions\tNum Rows Per Partition\tColumn Definitions\tTable Size\tEstimated Size of Partitions");
         KeyspaceRepository kR = new KeyspaceRepository(connector.getSession());
-        Batchamus bababoi = new Batchamus(connector.getSession(), null, null);
+        //Batchamus bababoi = new Batchamus(connector.getSession(), null, null);
         List<String> keyspaces = kR.getKeyspaceList();
         boolean systemkeyspaces = false;
         if(!systemkeyspaces)
@@ -22,13 +22,17 @@ public class ToCSV {
         }
         for (String keyspace : keyspaces)
         {
-            bababoi.setKeyspace(keyspace);
+            //bababoi.setKeyspace(keyspace);
             List<String> tables = kR.getTableList(keyspace);
             for(String table: tables)
             {
-                bababoi.setTable(table);
-                KeyThread thread = new KeyThread(kR, pw,keyspace,table);
-                thread.start();
+                //bababoi.setTable(table);
+                //Some threading stuff
+                /*KeyThread thread = new KeyThread(kR, pw,keyspace,table);
+                thread.start();*/
+                pw.println(keyspace + "\t" + table + "\t" + kR.getPartitionList(keyspace, table).size() + "\t" + kR.getRowsPerPartition(keyspace, table)
+                        + "\t" + kR.getColDefs(keyspace, table));
+                /*
                 pw.print("\t" + bababoi.b() + "\t");
                 List<String> partitionSizes = bababoi.bp(kR.getPartitionList(keyspace, table), kR.getRowsPerPartition(keyspace, table));
                 for(int i = 0; i < partitionSizes.size(); i++)
@@ -39,8 +43,9 @@ public class ToCSV {
                         pw.print(", ");
                     }
                 }
-                pw.print("\t\t\t");
                 pw.println();
+
+                 */
             }
         }
         pw.close();
@@ -60,7 +65,10 @@ class KeyThread extends Thread {
     }
     @Override
     public void run() {
-        pw.print(table + "\t" + kR.getPartitionList(keyspace, table) + "\t" + kR.getRowsPerPartition(keyspace, table)
-                + "\t" + kR.getColDefs(keyspace, table));
+        synchronized (kR) {
+            pw.print(keyspace + "\t" + table + "\t" + kR.getPartitionList(keyspace, table).size() + "\t" + kR.getRowsPerPartition(keyspace, table)
+                    + "\t" + kR.getColDefs(keyspace, table));
+            System.out.println("Boi");
+        }
     }
 }
