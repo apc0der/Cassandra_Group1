@@ -27,9 +27,13 @@ public class ToCSV {
         CassandraConnector connector = new CassandraConnector();
         //try {
             connector.connect(node, portNum, dataCenter);
-            PrintWriter pw = new PrintWriter("table_data.csv");
-            pw.println("Keyspace Name\tTable Name\tNum Partitions\tPartition Row Stats\tColumn Definitions\tTable Size\tPartition Size Stats");
+            PrintWriter csvWriter = new PrintWriter("table_data.csv");
+            PrintWriter clusterWriter = new PrintWriter("cluster_data.txt");
+            csvWriter.println("Keyspace Name,Table Name,Num Partitions,Partition Row Stats,Column Definitions,Table Size,Partition Size Stats");
             KeyspaceRepository kR = new KeyspaceRepository(connector.getSession());
+            clusterWriter.println("Cluster Name: " + kR.clusterName());
+            clusterWriter.println("Tables in Cluster: " + kR.getTableList(null).size());
+            int userTables = 0;
             //Batchamus bababoi = new Batchamus(connector.getSession(), null, null);
             List<String> keyspaces = kR.getKeyspaceList();
             boolean systemkeyspaces = false;
@@ -39,6 +43,15 @@ public class ToCSV {
                 keyspaces.remove("system_distributed");
                 keyspaces.remove("system");
                 keyspaces.remove("system_traces");
+                keyspaces.remove("dse_system_local");
+                keyspaces.remove("dse_system");
+                keyspaces.remove("dse_leases");
+                keyspaces.remove("dse_insights");
+                keyspaces.remove("dse_perf");
+                keyspaces.remove("dse_security");
+                keyspaces.remove("system_backups");
+                keyspaces.remove("solr_admin");
+                keyspaces.remove("dse_insights_local");
             }
             Map<String, String> tS = kR.getTableSizes();
             for (String keyspace : keyspaces) {
@@ -47,30 +60,34 @@ public class ToCSV {
                 for (String table : tables) {
                     //bababoi.setTable(table);
                     //Some threading stuff
-                /*KeyThread thread = new KeyThread(kR, pw,keyspace,table);
+                /*KeyThread thread = new KeyThread(kR, csvWriter,keyspace,table);
                 thread.start();*/
                     List<String> pL = kR.getPartitionList(keyspace, table);
                     Map<String, Integer> rPP = kR.getRowsPerPartition(keyspace, table);
                     String colDefs = kR.getColDefs(keyspace, table);
-                    pw.println(keyspace + "\t" + table + "\t" + pL.size() + "\t" + kR.statsTable(rPP)
-                            + "\t" + colDefs + "\t" + tS.get(keyspace+"."+table) + "\t" + kR.statsPart(rPP, tS.get(keyspace+"."+table)));
+                    csvWriter.println(keyspace + "," + table + "," + pL.size() + "," + kR.statsTable(rPP)
+                            + "," + colDefs + "," + tS.get(keyspace+"."+table) + "," + kR.statsPart(rPP, tS.get(keyspace+"."+table)));
+                    userTables++;
                 /*
-                pw.print("\t" + bababoi.b() + "\t");
+                csvWriter.print("\t" + bababoi.b() + "\t");
                 List<String> partitionSizes = bababoi.bp(kR.getPartitionList(keyspace, table), kR.getRowsPerPartition(keyspace, table));
                 for(int i = 0; i < partitionSizes.size(); i++)
                 {
-                    pw.print(partitionSizes.get(i));
+                    csvWriter.print(partitionSizes.get(i));
                     if(i!=partitionSizes.size()-1)
                     {
-                        pw.print(", ");
+                        csvWriter.print(", ");
                     }
                 }
-                pw.println();
+                csvWriter.println();
 
                  */
                 }
             }
-            pw.close();
+            clusterWriter.println("User Generated Tables in Cluster: " + userTables);
+            clusterWriter.println("Cluster Size: " + tS.get("Cluster"));
+            csvWriter.close();
+            clusterWriter.close();
             connector.close();
         /*} catch (Exception e) {
             connector.close();
@@ -78,23 +95,24 @@ public class ToCSV {
         }*/
     }
 }
+/*
 class KeyThread extends Thread {
     KeyspaceRepository kR;
-    PrintWriter pw;
+    PrintWriter csvWriter;
     String keyspace, table;
-    public KeyThread(KeyspaceRepository a, PrintWriter pw, String keyspace, String table)
+    public KeyThread(KeyspaceRepository a, PrintWriter csvWriter, String keyspace, String table)
     {
         this.kR = a;
-        this.pw = pw;
+        this.csvWriter = csvWriter;
         this.keyspace = keyspace;
         this.table = table;
     }
     @Override
     public void run() {
         synchronized (kR) {
-            pw.print(keyspace + "\t" + table + "\t" + kR.getPartitionList(keyspace, table).size() + "\t" + kR.getRowsPerPartition(keyspace, table)
+            csvWriter.print(keyspace + "\t" + table + "\t" + kR.getPartitionList(keyspace, table).size() + "\t" + kR.getRowsPerPartition(keyspace, table)
                     + "\t" + kR.getColDefs(keyspace, table));
             System.out.println("Boi");
         }
     }
-}
+}*/
