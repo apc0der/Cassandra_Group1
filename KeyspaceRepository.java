@@ -9,6 +9,9 @@ import com.datastax.oss.driver.api.querybuilder.QueryBuilder;
 import com.datastax.oss.driver.api.querybuilder.relation.Relation;
 import com.datastax.oss.driver.api.querybuilder.select.Select;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.*;
 
 public class KeyspaceRepository {
@@ -142,8 +145,113 @@ public class KeyspaceRepository {
         });
         return partitionKeysTONumInPartition;
     }
-
-
+    public String statsTable(Map<String, Integer> rPP)
+    {
+        if(rPP.size()==0)
+            return "";
+        Set<String> partitions = rPP.keySet();
+        int min = Integer.MAX_VALUE, max = -1;
+        double avg = 0.0;
+        for(String part : partitions)
+        {
+            int num = rPP.get(part);
+            min = Math.min(num, min);
+            max = Math.max(num, max);
+            avg+= num;
+        }
+        avg/=rPP.size();
+        return "Min: " + min + ", Max: " + max + ", Average: " + avg;
+    }
+    public String statsPart(Map<String, Integer> rPP, String size)
+    {
+        int maxRows = -1;
+        int totalRows = 0;
+        Set<String> keyset = rPP.keySet();
+        for(String bababoi : keyset)
+        {
+            maxRows = Math.max(maxRows, rPP.get(bababoi));
+            totalRows += rPP.get(bababoi);
+        }
+        ArrayList<String> xd = new ArrayList<>();
+        xd.add("B");
+        xd.add("KB");
+        xd.add("MB");
+        xd.add("GB");
+        xd.add("TB");
+        xd.add("PB");
+        xd.add("EB");
+        xd.add("ZB");
+        int d = xd.indexOf(size.substring(6));
+        double bites = Double.parseDouble(size.substring(0, 6));
+        while(bites>1)
+        {
+            bites /= 1000;
+            d++;
+        }
+        if(d>0&&bites<1)
+        {
+            bites *= 1000;
+            d--;
+        }
+        return "Max Partition Size: " + String.format("%.3f %s", bites, xd.get(d));
+    }
+    public Map<String, String> getTableSizes() throws IOException
+    {
+        BufferedReader br = new BufferedReader(new FileReader("output.txt"));
+        Map<String, String> freShaVaCaDo = new TreeMap<>();
+        br.readLine();
+        String reader = br.readLine();
+        String keyspace = "", table, size;
+        long bytes;
+        while(reader != null)
+        {
+            if(reader.equals("----------------")) {
+                reader = br.readLine();
+                if (reader == null)
+                    break;
+                keyspace = reader.substring("Keyspace : ".length());
+                for(int i = 0; i<5;i++)
+                    br.readLine();
+            }
+            else
+            {
+                table = reader.substring("\t\tTable: ".length());
+                br.readLine();
+                br.readLine();
+                reader = br.readLine();
+                bytes = Integer.parseInt(reader.substring("\t\tSpace used (live): ".length()));
+                double bites = (double) bytes;
+                ArrayList<String> xd = new ArrayList<>();
+                xd.add("B");
+                xd.add("KB");
+                xd.add("MB");
+                xd.add("GB");
+                xd.add("TB");
+                xd.add("PB");
+                xd.add("EB");
+                xd.add("ZB");
+                int d = 0;
+                while(bites>1)
+                {
+                    bites /= 1000;
+                    d++;
+                }
+                if(d>0&&bites<1)
+                {
+                    bites *= 1000;
+                    d--;
+                }
+                size = String.format("%.3f %s", bites, xd.get(d));
+                freShaVaCaDo.put(keyspace+"."+table, size);
+                for(int i = 0; i<30; i++)
+                    br.readLine();
+            }
+            reader = br.readLine();
+        }
+        if(freShaVaCaDo.size()!=0)
+            return freShaVaCaDo;
+        return null;
+    }
 
     private String conversion(String col, DataType a, Row b){
         if(a.equals(DataTypes.ASCII))
