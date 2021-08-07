@@ -1,0 +1,3 @@
+Keyspace Name,Table Name,Num Partitions,Partition Row Stats,Column Definitions,Table Size,Partition Size Stats
+testkeyspace,partkeytest,2,Min: 1 | Max: 2 | Average: 1.5,partkey text | clustkey text | other int ,10.012 KB,Max Partition Size: 6.675 KB
+testkeyspace,videos,5,Min: 1 | Max: 1 | Average: 1.0,creation_date timestamp | title text | video_id uuid ,5.308 KB,Max Partition Size: 1.062 KB
